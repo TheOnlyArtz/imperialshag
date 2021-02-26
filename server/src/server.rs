@@ -2,27 +2,30 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::io::Interest;
 use std::io;
 
+use crate::socket::{SocketState, SocketStream};
+
 async fn process_socket(socket: TcpStream) -> io::Result<()> {
     // A loop which reads messages from the CnC
+    let socket = SocketStream::new(socket);
+
     loop {
-        let stream_ready = socket.ready(Interest::READABLE | Interest::WRITABLE).await?;
+        let stream_ready = socket.stream.ready(Interest::READABLE | Interest::WRITABLE).await?;
 
         if stream_ready.is_readable() {
-            let mut data = vec![0; 1024];
+            
+            let msg = socket.consume_message().await;
 
-            match socket.try_read(&mut data) {
-                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => continue,
-                Err(e) => return Err(e.into()),
-                Ok(n_bytes) => {
-                    if n_bytes == 0 {
-                        println!("Agent closed connection !");
-                        return Ok(())
-                    } 
-                    println!("{}", String::from_utf8(data).unwrap());
+            if let Ok((msg, n_bytes)) = msg {
+                if n_bytes == 0 {
+                    break
                 }
+                
+                socket.handle_msg(msg).await;
             }
         }
     }
+
+    Ok(())
 }
 
 pub async fn start_cnc_server(ip: &str, port: u16) -> io::Result<()> {

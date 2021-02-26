@@ -13,3 +13,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+/*
+ HANDSHAKING PROCESS
+
+• SERVER   ----- Public RSA KEY -----> AGENT // Agent side: SERVER_HELLO
+• AGENT    ----- AES256 Encrypted with the Public RSA Key -----> SERVER // Server side: AGENT_HELLO
+    * Server decrypts the AES256 with the Private RSA Key *
+• SERVER   ----- HANDSHAKE ACK -----> AGENT // Agent side: SERVER_HANDSHAKE_ACK
+• AGENT    ----- HANDSHAKE ACK -----> SERVER // Server side: AGENT_HANDSHAKE_ACK
+    * Server may now send commands to the agent encrypted with the AES256 Key*
+*/
