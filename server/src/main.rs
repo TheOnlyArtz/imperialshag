@@ -1,4 +1,5 @@
 mod server;
+mod socket;
 
 const IP: &'static str = "0.0.0.0";
 const PORT: u16 = 8080;
