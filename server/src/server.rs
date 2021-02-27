@@ -27,15 +27,14 @@ impl Server {
         self.read_new_socket(new_socket_id).await.unwrap();
     }
 
-    pub async fn broadcast_command(&mut self, command: Vec<u8>) -> Result<(), Vec<&SocketStream>> {
-        let mut failed_broadcasts: Vec<&SocketStream> = Vec::new();
+    pub async fn broadcast_command(&mut self, command: Vec<u8>) -> Result<(), Vec<i32>> {
+        let mut failed_broadcasts: Vec<i32> = Vec::new();
         let streams = Arc::clone(&self.streams);
         let mut streams = streams.lock().await;
         for stream in &mut *streams {
             let res = stream.1.write_msg(&command).await;
             if res.is_err() {
-                println!("Errrorrrr");
-                // failed_broadcasts.push(&stream);
+                failed_broadcasts.push(*stream.0);
                 continue;
             }
         }
@@ -55,10 +54,6 @@ impl Server {
             loop {
                 let streams = my_streams.lock().await;
                 let socket = streams.get(&id).unwrap();
-
-                // let stream_ready = stream_lock.ready(Interest::READABLE | Interest::WRITABLE).await.unwrap();
-                // if stream_ready.is_readable() {
-
                 let msg = socket.consume_message().await;
 
                 match msg {
@@ -76,7 +71,6 @@ impl Server {
                     }
                     _ => {}
                 }
-                // }
             }
         });
         Ok(())
