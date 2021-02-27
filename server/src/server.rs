@@ -63,12 +63,7 @@ impl Server {
                         streams.remove(&id);
                         break;
                     }
-                    Ok((msg, n_bytes)) => {
-                        if n_bytes == 0 {
-                            println!("Disconnected!");
-                            break;
-                        }
-
+                    Ok((msg, _n_bytes)) => {
                         socket.handle_msg(msg).await;
                     }
                     _ => {}
