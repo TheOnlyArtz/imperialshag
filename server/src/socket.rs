@@ -1,7 +1,7 @@
 
 use tokio::{
     net::TcpStream,
-    // io::{AsyncRead, AsyncWrite, AsyncBufReadExt, BufReader}
+    io::{AsyncWriteExt}
 };
 
 pub enum SocketState {
@@ -44,10 +44,11 @@ impl SocketStream {
     }
 
     pub async fn handle_msg(&self, msg: Vec<u8>) {
+        println!("{:?}", msg);
         match &self.state { 
             SocketState::Handshake(handshake_state) => {
                 match handshake_state {
-                    ClientHello => {
+                    HandshakeState::ClientHello => {
 
                     },
                     _ => {}
@@ -56,23 +57,10 @@ impl SocketStream {
             _ => {}
         }
     }
+
+    pub async fn write_msg(&mut self, msg: &Vec<u8>) -> Result<(), Box<dyn std::error::Error>> {
+        self.stream.write_all(msg).await?; // TODO: Maybe error handling like broken pipes.
+
+        Ok(())
+    }
 }
-// impl SocketStream<TcpStream> {
-//     pub async fn from_connection(connection: TcpStream) -> Self {
-//         SocketStream::new(connection)
-//     }
-// }
-
-// impl<S: AsyncRead + AsyncWrite + Unpin> SocketStream<S> {
-//     pub fn new(stream: S) -> Self {
-//         Self {
-//             reader: BufReader::new(stream),
-//         }
-//     }
-
-//     pub async fn consume_message(&mut self) -> Result<(Vec<u8>, usize), Box<dyn std::error::Error>> {
-//         let mut data = vec![0; 1024];
-
-//         match self.
-//     }
-// }

