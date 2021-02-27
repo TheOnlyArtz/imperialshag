@@ -1,8 +1,11 @@
-
 use tokio::{
     net::TcpStream,
-    io::{AsyncWriteExt}
+    io::{AsyncWriteExt},
+    sync::{Mutex}
 };
+
+use std::sync::Arc;
+
 #[derive(Debug)]
 pub enum SocketState {
     Handshake(HandshakeState),
@@ -17,22 +20,24 @@ pub enum HandshakeState {
 
 #[derive(Debug)]
 pub struct SocketStream {
-    pub stream: TcpStream,
+    pub stream: Arc<Mutex<TcpStream>>,
     state: SocketState,
 }
 
 impl SocketStream {
     pub fn new(stream: TcpStream) -> Self {
         Self {
-            stream,
+            stream: Arc::new(Mutex::new(stream)),
             state: SocketState::Handshake(HandshakeState::ClientHello)
         }
     }
 
     pub async fn consume_message(&self) -> Result<(Vec<u8>, usize), std::io::Error> {
         let mut data = vec![0; 1024];
+        let my_stream = Arc::clone(&self.stream);
+        let stream_lock = my_stream.lock().await;
 
-        match self.stream.try_read(&mut data) {
+        match stream_lock.try_read(&mut data) {
             Err(e) => {
                 return Err(e)
             },
@@ -63,8 +68,10 @@ impl SocketStream {
         }
     }
 
-    pub async fn write_msg(&mut self, msg: &Vec<u8>) -> Result<(), Box<dyn std::error::Error>> {
-        self.stream.write_all(msg).await?; // TODO: Maybe error handling like broken pipes.
+    pub async fn write_msg(&self, msg: &Vec<u8>) -> Result<(), Box<dyn std::error::Error>> {
+        let my_stream = Arc::clone(&self.stream);
+        let mut stream_lock = my_stream.lock().await;
+        stream_lock.write_all(msg).await?; // TODO: Maybe error handling like broken pipes.
 
         Ok(())
     }
