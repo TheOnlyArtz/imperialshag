@@ -52,13 +52,15 @@ impl Server {
         let my_streams = Arc::clone(&self.streams);
         tokio::spawn(async move {
             loop {
-                let streams = my_streams.lock().await;
+                let mut streams = my_streams.lock().await;
                 let socket = streams.get(&id).unwrap();
                 let msg = socket.consume_message().await;
 
                 match msg {
                     Err(e) if e.kind() == std::io::ErrorKind::ConnectionReset => {
                         println!("Agent disconnected");
+                        // remove from hashmap
+                        streams.remove(&id);
                         break;
                     }
                     Ok((msg, n_bytes)) => {
