@@ -42,9 +42,7 @@ impl SocketStream {
                 return Err(e)
             },
             Ok(n_bytes) => {
-                println!("{}", n_bytes);
                 if n_bytes == 0 {
-                    println!("Agent closed connection !");
                     return Ok((vec![0u8], 0));
                 }
                 
@@ -54,7 +52,7 @@ impl SocketStream {
     }
 
     pub async fn handle_msg(&self, msg: Vec<u8>) {
-        println!("{:?}", msg);
+        self.write_msg(&msg).await.unwrap();
         match &self.state { 
             SocketState::Handshake(handshake_state) => {
                 match handshake_state {

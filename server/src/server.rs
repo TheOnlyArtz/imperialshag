@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::io;
+use tokio::io::{AsyncWriteExt};
 use std::sync::Arc;
-use tokio::io::{AsyncWriteExt, Interest};
+// use tokio::io::{AsyncWriteExt, Interest};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
@@ -22,8 +23,17 @@ impl Server {
     pub async fn assign_new_socket(&mut self, socket: SocketStream) {
         let streams = Arc::clone(&self.streams);
         let mut streams_lock = streams.lock().await;
+
         let new_socket_id = generate_random_num();
+        
         streams_lock.insert(new_socket_id, socket);
+
+        // FIRE HANDSHAKE SERVER_HELLO so we can keep on going from handle_msg.
+        // let my_new_stream = Arc::clone(&streams_lock.get(&new_socket_id).unwrap().stream);
+        // let mut my_new_lock = my_new_stream.lock().await;
+        // my_new_lock.write_all(&b"HANDSHAKE".to_vec()).await.unwrap();
+        // std::mem::drop(my_new_lock);
+
         self.read_new_socket(new_socket_id).await.unwrap();
     }
 
@@ -63,7 +73,8 @@ impl Server {
                         streams.remove(&id);
                         break;
                     }
-                    Ok((msg, _n_bytes)) => {
+                    Ok((msg, n_bytes)) => {
+                        println!("{} -> {}", String::from_utf8(msg.clone()).unwrap(), n_bytes);
                         socket.handle_msg(msg).await;
                     }
                     _ => {}

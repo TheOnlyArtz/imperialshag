@@ -16,7 +16,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     server::start_cnc_server(IP, PORT, &server).await?;
 
-    println!("I'm here");
     signal::ctrl_c().await?;
     Ok(())
 }
