@@ -10,3 +10,4 @@ edition = "2018"
 tokio = {version = "1.2.0", features = ["macros", "rt", "rt-multi-thread", "net", "io-util", "sync"]}
 aes = "0.6.0"
 rsa = "0.3.0"
+rand = "0.8.3"

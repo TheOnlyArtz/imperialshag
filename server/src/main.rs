@@ -1,3 +1,4 @@
+  
 mod server;
 mod socket;
 
@@ -19,7 +20,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 /*
  HANDSHAKING PROCESS
-
 • SERVER   ----- Public RSA KEY -----> AGENT // Agent side: SERVER_HELLO
 • AGENT    ----- AES256 Encrypted with the Public RSA Key -----> SERVER // Server side: AGENT_HELLO
     * Server decrypts the AES256 with the Private RSA Key *

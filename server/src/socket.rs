@@ -3,17 +3,19 @@ use tokio::{
     net::TcpStream,
     io::{AsyncWriteExt}
 };
-
+#[derive(Debug)]
 pub enum SocketState {
     Handshake(HandshakeState),
     Operational
 }
 
+#[derive(Debug)]
 pub enum HandshakeState {
     ServerHello, // RSA public key
     ClientHello, // AES256 encrypted with the public key
 }
 
+#[derive(Debug)]
 pub struct SocketStream {
     pub stream: TcpStream,
     state: SocketState,
@@ -27,12 +29,15 @@ impl SocketStream {
         }
     }
 
-    pub async fn consume_message(&self) -> Result<(Vec<u8>, usize), ()> {
+    pub async fn consume_message(&self) -> Result<(Vec<u8>, usize), std::io::Error> {
         let mut data = vec![0; 1024];
 
         match self.stream.try_read(&mut data) {
-            Err(_) => return Err(()),
+            Err(e) => {
+                return Err(e)
+            },
             Ok(n_bytes) => {
+                println!("{}", n_bytes);
                 if n_bytes == 0 {
                     println!("Agent closed connection !");
                     return Ok((vec![0u8], 0));
