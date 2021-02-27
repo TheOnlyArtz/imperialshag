@@ -95,7 +95,7 @@ pub fn generate_random_num() -> i32 {
     let mut rng = rand::thread_rng();
     let y: f64 = rng.gen(); // generates a float between 0 and 1
     
-    let mut nums: Vec<i32> = (1..5454).collect();
+    let mut nums: Vec<i32> = (1..100000).collect();
     nums.shuffle(&mut rng);
     *nums.get(0).unwrap()
 }
