@@ -62,7 +62,7 @@ impl Server {
 
             let res = lock.write_msg(&command).await;
             if res.is_err() {
-            failed_broadcasts.push(*stream.0);
+                failed_broadcasts.push(*stream.0);
                 continue;
             }
         }
