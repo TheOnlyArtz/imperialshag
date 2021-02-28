@@ -60,11 +60,8 @@ impl Server {
                 SocketState::Handshake(_) => command,
             };
 
-            println!("{:?}", command);
             let res = lock.write_msg(&command).await;
-            println!("{}", "here");
             if res.is_err() {
-            println!("{}", "errrororo");
             failed_broadcasts.push(*stream.0);
                 continue;
             }

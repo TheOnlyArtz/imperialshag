@@ -48,8 +48,12 @@ impl SocketStream {
         }
     }
 
+    /*
+        TODO: Pass the length of the payload the agent sends in the first byte
+        that way we can the first byte, and read to a fixed length, much better.
+    */
     pub async fn consume_message(&self) -> Result<(Vec<u8>, usize), std::io::Error> {
-        let mut data = vec![0; 1024];
+        let mut data = vec![0; 4096];
         let my_stream = Arc::clone(&self.stream);
         let stream_lock = my_stream.lock().await;
 
@@ -66,6 +70,7 @@ impl SocketStream {
 
     pub async fn handle_msg(&mut self, msg: Vec<u8>, n_bytes: usize) {
         // self.write_msg(&msg).await.unwrap();
+        println!("Number of bytes {:?}", n_bytes);
         let msg = msg.get(..n_bytes).unwrap().to_vec();
         match &self.state {
             SocketState::Handshake(handshake_state) => match handshake_state {
@@ -95,10 +100,8 @@ impl SocketStream {
                 _ => {}
             },
             SocketState::Operational => {
-                let trimmed = msg.split(|s| s == &(0u8)).next().unwrap();
-
                 let decrypted_msg = crypto::decrypt_from_aes(
-                    trimmed.to_vec(),
+                    msg.to_vec(),
                     self.aes_key.as_ref().unwrap(),
                     &self.aes_nonce.unwrap(),
                 );
