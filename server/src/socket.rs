@@ -1,22 +1,11 @@
 use sodiumoxide::crypto::aead::{Key, Nonce};
 
+use std::net::SocketAddr;
 use tokio::{io::AsyncWriteExt, net::TcpStream, sync::Mutex};
 
 use crate::crypto;
 use std::convert::TryInto;
 use std::sync::Arc;
-
-fn to_arr_32<T>(v: Vec<T>) -> [T; 32] {
-    v.try_into().unwrap_or_else(|v: Vec<T>| {
-        panic!("Expected a Vec of length {} but it was {}", 32, v.len())
-    })
-}
-
-fn to_arr_24<T>(v: Vec<T>) -> [T; 24] {
-    v.try_into().unwrap_or_else(|v: Vec<T>| {
-        panic!("Expected a Vec of length {} but it was {}", 24, v.len())
-    })
-}
 
 #[derive(Debug)]
 pub enum SocketState {
@@ -26,8 +15,14 @@ pub enum SocketState {
 
 #[derive(Debug)]
 pub enum HandshakeState {
-    ServerHello, // RSA public key
     ClientHello, // AES256 encrypted with the pubkeylic key
+}
+
+// SocketAddr just indicates which peer has been disconnected.
+#[derive(Debug)]
+pub enum HandleErrors {
+    BadHandshakeFormat(SocketAddr),
+    BadHandshakeRSA(SocketAddr),
 }
 
 #[derive(Debug)]
@@ -68,22 +63,43 @@ impl SocketStream {
         }
     }
 
-    pub async fn handle_msg(&mut self, msg: Vec<u8>, n_bytes: usize) {
-        // self.write_msg(&msg).await.unwrap();
-        println!("Number of bytes {:?}", n_bytes);
-        let msg = msg.get(..n_bytes).unwrap().to_vec();
+    pub async fn handle_msg(&mut self, msg: Vec<u8>, n_bytes: usize) -> Result<(), HandleErrors> {
+        // We want to ensure we read only the bytes we need 
+        // (more bytes than the actual message can cause huge problems with the encryption algorithms)
+        // For example "{some_encrypted_data}\0\0\0" can't be decrypted the way "{some_decrypted_data}" does. 
+        let msg = msg.get(..n_bytes).unwrap().to_vec(); 
+
         match &self.state {
             SocketState::Handshake(handshake_state) => match handshake_state {
                 HandshakeState::ClientHello => {
+                    println!("Goes ClientHello, starting to process handshake");
+
+                    // Messing with RSA is a matter of once in an agent runtime.
+                    // we shouldn't really care about the expenses of the method
+                    // this method may return an error, every encryption related
+                    // error SHOULD be taken seriously and we can't let the connection / handshake
+                    // go through. SHUTDOWN!
                     let msg = crypto::decrypt_with_rsa(
                         msg,
                         crypto::load_private_rsa("private.pem").await.unwrap(),
                     );
 
-                    let msg = msg.get(..n_bytes).unwrap().to_vec();
+                    if msg.is_err() {
+                        return Err(HandleErrors::BadHandshakeRSA(
+                            self.stream.as_ref().lock().await.peer_addr().unwrap(),
+                        ));
+                    }
+
+                    let msg = msg.unwrap().get(..n_bytes).unwrap().to_vec();
                     let msg = String::from_utf8(msg).unwrap();
 
                     let iter: Vec<&str> = msg.split(" ").collect();
+                    if iter.len() != 2 {
+                        return Err(HandleErrors::BadHandshakeFormat(
+                            self.stream.as_ref().lock().await.peer_addr().unwrap(),
+                        )); // Doesn't follow the format of "Key Nonce\{bunch of nulls probably}"
+                    }
+
                     let key = iter.get(0).unwrap();
                     let key = base64::decode(key).unwrap();
                     let nonce = iter.get(1).unwrap().trim_matches(char::from(0));
@@ -95,9 +111,11 @@ impl SocketStream {
                     self.aes_nonce = Some(nonce);
                     self.state = SocketState::Operational;
 
+                    // This means everything went as it should
+                    println!("Handshake was made successfully!");
+                    println!("Sending ACK to the agent");
                     self.send_handshake_ack().await;
                 }
-                _ => {}
             },
             SocketState::Operational => {
                 let decrypted_msg = crypto::decrypt_from_aes(
@@ -111,6 +129,8 @@ impl SocketStream {
                 println!("New msg: {}", msg);
             }
         }
+
+        Ok(())
     }
 
     pub async fn write_msg(&self, msg: &Vec<u8>) -> Result<(), Box<dyn std::error::Error>> {
@@ -129,4 +149,16 @@ impl SocketStream {
 
         self.write_msg(&encrypted).await.unwrap();
     }
+}
+
+fn to_arr_32<T>(v: Vec<T>) -> [T; 32] {
+    v.try_into().unwrap_or_else(|v: Vec<T>| {
+        panic!("Expected a Vec of length {} but it was {}", 32, v.len())
+    })
+}
+
+fn to_arr_24<T>(v: Vec<T>) -> [T; 24] {
+    v.try_into().unwrap_or_else(|v: Vec<T>| {
+        panic!("Expected a Vec of length {} but it was {}", 24, v.len())
+    })
 }

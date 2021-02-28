@@ -46,17 +46,22 @@ impl<'a> SocketStream<'a> {
         }
     }
 
-    pub async fn handle_msg(&mut self, msg: Vec<u8>, n_bytes: usize) {
+    pub async fn handle_msg(&mut self, msg: Vec<u8>, n_bytes: usize) -> Result<(), ()> {
         let trimmed = msg
             .get(..n_bytes)
             .unwrap()
             .split(|s| s == &(0 as u8))
             .next()
             .unwrap();
+
         let decrypted_msg =
             crypto::decrypt_from_aes(trimmed.to_vec(), &self.aes_key, &self.aes_nonce);
 
-        let msg = String::from_utf8(decrypted_msg).unwrap();
+        if decrypted_msg.is_err() {
+            return Err(()) // Couldn't decrypt message, probably bad AES key!
+        }
+
+        let msg = String::from_utf8(decrypted_msg.unwrap()).unwrap();
 
         match &self.state {
             SocketState::Handshake(handshake_state) => match handshake_state {
@@ -64,6 +69,9 @@ impl<'a> SocketStream<'a> {
                     if msg == "ACK" {
                         println!("Finished handshake successfully!");
                         self.state = SocketState::Operational;
+                    } else {
+                        println!("Bad handshake, returning an Error");
+                        return Err(()) // Bad handshake
                     }
                 }
             },
@@ -75,6 +83,8 @@ impl<'a> SocketStream<'a> {
                 self.send_msg(output.stdout).await;
             }
         }
+
+        Ok(())
     }
 
     // worth noting msg param is not encrypted.

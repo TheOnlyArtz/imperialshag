@@ -12,9 +12,9 @@ Vq7xmzO1AQpSX2fSxiRtfhzcmDaEgWhub4NOI70iaJ5bg2qx3wMdE2dOsfmC0Ljo
 FwIDAQAB
 -----END PUBLIC KEY-----";
 
-pub fn decrypt_from_aes(msg: Vec<u8>, key: &Key, nonce: &Nonce) -> Vec<u8> {
+pub fn decrypt_from_aes(msg: Vec<u8>, key: &Key, nonce: &Nonce) -> Result<Vec<u8>, ()> {
     let c = aead::open(&msg, None, nonce, key);
-    c.unwrap()
+    c
 }
 
 pub fn encrypt_with_aes(msg: Vec<u8>, key: &Key, nonce: &Nonce) -> Vec<u8> {

