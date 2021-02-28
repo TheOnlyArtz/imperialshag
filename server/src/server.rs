@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 
 use rand::prelude::*;
 use crate::socket::{SocketState, SocketStream};
-
+use crate::crypto;
 
 pub struct Server {
     pub streams: Arc<Mutex<HashMap<i32, Arc<Mutex<SocketStream>>>>>, // or agents
@@ -41,15 +41,27 @@ impl Server {
     }
 
     pub async fn broadcast_command(&mut self, command: Vec<u8>) -> Result<(), Vec<i32>> {
+        
         // Todo find better namings for everything here lmao
         let mut failed_broadcasts: Vec<i32> = Vec::new();
         let streams = Arc::clone(&self.streams);
         let mut streams = streams.lock().await;
-
+        
         for stream in &mut *streams {
             let my_socket_stream = Arc::clone(stream.1);
             let lock = my_socket_stream.lock().await;
+            let command = command.clone();
 
+            let command = match lock.state {
+                SocketState::Operational => {
+                    crypto::encrypt_with_aes(command, lock.aes_key.as_ref().unwrap(), lock.aes_nonce.as_ref().unwrap())
+                },
+                SocketState::Handshake(_) => {
+                    command
+                }
+            };
+
+            println!("{:?}", command);
             let res = lock.write_msg(&command).await;
             if res.is_err() {
                 failed_broadcasts.push(*stream.0);

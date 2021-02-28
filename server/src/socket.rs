@@ -35,7 +35,7 @@ pub struct SocketStream {
     pub stream: Arc<Mutex<TcpStream>>,
     pub aes_key: Option<Key>,
     pub aes_nonce: Option<Nonce>,
-    state: SocketState,
+    pub state: SocketState,
 }
 
 impl SocketStream {
@@ -93,7 +93,19 @@ impl SocketStream {
                     _ => {}
                 }
             }
-            _ => {}
+            SocketState::Operational => {
+                let trimmed = msg.split(|s| s == &(0u8)).next().unwrap();
+
+                let decrypted_msg = crypto::decrypt_from_aes(
+                    trimmed.to_vec(),
+                    self.aes_key.as_ref().unwrap(),
+                    &self.aes_nonce.unwrap(),
+                );
+
+                let msg = String::from_utf8(decrypted_msg).unwrap();
+
+                println!("New msg: {}", msg);
+            }
         }
     }
 
