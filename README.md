@@ -1,7 +1,7 @@
 # Imperialshag
-A multi-platform distributed C&amp;C written purely in Rust
+A multi-platform distributed Command and Control purely written in Rust
 
-### Secure, better try to sniff some HTTP, Losers.
+### Secured by default, better try to sniff some HTTP traffic, Losers.
 ![Handshake Visualized](https://i.imgur.com/OxKVGrE.png)
 
 #### Name's decision
