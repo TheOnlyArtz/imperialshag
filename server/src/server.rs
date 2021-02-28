@@ -1,25 +1,25 @@
 use std::collections::HashMap;
 use std::io;
-use tokio::io::{AsyncWriteExt};
 use std::sync::Arc;
+use tokio::io::AsyncWriteExt;
 // use tokio::io::{AsyncWriteExt, Interest};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
-use rand::prelude::*;
-use crate::socket::{SocketState, SocketStream};
 use crate::crypto;
+use crate::socket::{SocketState, SocketStream};
+use rand::prelude::*;
 
 pub struct Server {
     pub streams: Arc<Mutex<HashMap<i32, Arc<Mutex<SocketStream>>>>>, // or agents
-    pub rsa_private_key: Vec<u8>
+    pub rsa_private_key: Vec<u8>,
 }
 
 impl Server {
     pub fn new(rsa_private_key: Vec<u8>) -> Self {
         Self {
             streams: Arc::new(Mutex::new(HashMap::new())),
-            rsa_private_key
+            rsa_private_key,
         }
     }
 
@@ -28,7 +28,7 @@ impl Server {
         let mut streams_lock = streams.lock().await;
 
         let new_socket_id = generate_random_num();
-        
+
         streams_lock.insert(new_socket_id, Arc::new(Mutex::new(socket)));
 
         // FIRE HANDSHAKE SERVER_HELLO so we can keep on going from handle_msg.
@@ -41,24 +41,23 @@ impl Server {
     }
 
     pub async fn broadcast_command(&mut self, command: Vec<u8>) -> Result<(), Vec<i32>> {
-        
         // Todo find better namings for everything here lmao
         let mut failed_broadcasts: Vec<i32> = Vec::new();
         let streams = Arc::clone(&self.streams);
         let mut streams = streams.lock().await;
-        
+
         for stream in &mut *streams {
             let my_socket_stream = Arc::clone(stream.1);
             let lock = my_socket_stream.lock().await;
             let command = command.clone();
 
             let command = match lock.state {
-                SocketState::Operational => {
-                    crypto::encrypt_with_aes(command, lock.aes_key.as_ref().unwrap(), lock.aes_nonce.as_ref().unwrap())
-                },
-                SocketState::Handshake(_) => {
-                    command
-                }
+                SocketState::Operational => crypto::encrypt_with_aes(
+                    command,
+                    lock.aes_key.as_ref().unwrap(),
+                    lock.aes_nonce.as_ref().unwrap(),
+                ),
+                SocketState::Handshake(_) => command,
             };
 
             println!("{:?}", command);
@@ -97,7 +96,7 @@ impl Server {
                         break;
                     }
                     Ok((msg, n_bytes)) => {
-                        lock.handle_msg(msg).await;
+                        lock.handle_msg(msg, n_bytes).await;
                     }
                     _ => {}
                 }

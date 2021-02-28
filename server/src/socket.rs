@@ -64,35 +64,36 @@ impl SocketStream {
         }
     }
 
-    pub async fn handle_msg(&mut self, msg: Vec<u8>) {
+    pub async fn handle_msg(&mut self, msg: Vec<u8>, n_bytes: usize) {
         // self.write_msg(&msg).await.unwrap();
+        let msg = msg.get(..n_bytes).unwrap().to_vec();
         match &self.state {
-            SocketState::Handshake(handshake_state) => {
-                match handshake_state {
-                    HandshakeState::ClientHello => {
-                        let msg = String::from_utf8(msg).unwrap();
+            SocketState::Handshake(handshake_state) => match handshake_state {
+                HandshakeState::ClientHello => {
+                    let msg = crypto::decrypt_with_rsa(
+                        msg,
+                        crypto::load_private_rsa("private.pem").await.unwrap(),
+                    );
 
-                        let iter: Vec<&str> = msg.split(" ").collect();
+                    let msg = msg.get(..n_bytes).unwrap().to_vec();
+                    let msg = String::from_utf8(msg).unwrap();
 
-                        let key = iter.get(0).unwrap();
-                        let key = base64::decode(key).unwrap();
-                        let nonce = iter.get(1).unwrap().trim_matches(char::from(0));
-                        let nonce = base64::decode(nonce).unwrap();
+                    let iter: Vec<&str> = msg.split(" ").collect();
+                    let key = iter.get(0).unwrap();
+                    let key = base64::decode(key).unwrap();
+                    let nonce = iter.get(1).unwrap().trim_matches(char::from(0));
+                    let nonce = base64::decode(nonce).unwrap();
+                    let key = Key(to_arr_32(key));
+                    let nonce = Nonce(to_arr_24(nonce));
 
-                        let key = Key(to_arr_32(key));
-                        let nonce = Nonce(to_arr_24(nonce));
+                    self.aes_key = Some(key);
+                    self.aes_nonce = Some(nonce);
+                    self.state = SocketState::Operational;
 
-                        self.aes_key = Some(key);
-                        self.aes_nonce = Some(nonce);
-                        self.state = SocketState::Operational;
-
-                        self.send_handshake_ack().await;
-                        // println!("{:?}", self.aes_nonce);
-                        // println!("{}", String::from_utf8(msg).unwrap());
-                    }
-                    _ => {}
+                    self.send_handshake_ack().await;
                 }
-            }
+                _ => {}
+            },
             SocketState::Operational => {
                 let trimmed = msg.split(|s| s == &(0u8)).next().unwrap();
 

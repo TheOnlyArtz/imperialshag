@@ -1,8 +1,8 @@
+use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
-use tokio::io::{AsyncWriteExt};
 pub enum SocketState {
     Handshake(HandshakeState),
-    Operational
+    Operational,
 }
 
 pub enum HandshakeState {
@@ -18,7 +18,7 @@ impl SocketStream {
     pub fn new(stream: TcpStream) -> Self {
         Self {
             stream,
-            state: SocketState::Handshake(HandshakeState::ServerHello)
+            state: SocketState::Handshake(HandshakeState::ServerHello),
         }
     }
 
@@ -31,23 +31,21 @@ impl SocketStream {
                 if n_bytes == 0 {
                     return Ok((vec![0u8], 0));
                 }
-                
+
                 Ok((data, n_bytes))
-            },
+            }
         }
     }
 
     pub async fn handle_msg(&mut self, msg: Vec<u8>) {
         let msg = String::from_utf8(msg).unwrap();
 
-        match &self.state { 
-            SocketState::Handshake(handshake_state) => {
-                match handshake_state {
-                    HandshakeState::ServerHello => {
-                        if msg == "ACK" {
-                            println!("Finished handshake successfully!");
-                        }                
-                    },
+        match &self.state {
+            SocketState::Handshake(handshake_state) => match handshake_state {
+                HandshakeState::ServerHello => {
+                    if msg == "ACK" {
+                        println!("Finished handshake successfully!");
+                    }
                 }
             },
             SocketState::Operational => {
@@ -62,6 +60,4 @@ pub async fn connect_to_cnc(ip: &str, port: u16) -> Result<TcpStream, Box<dyn st
     Ok(stream)
 }
 
-pub async fn start_handshake() {
-    
-}
+pub async fn start_handshake() {}

