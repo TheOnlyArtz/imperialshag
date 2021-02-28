@@ -62,8 +62,10 @@ impl Server {
 
             println!("{:?}", command);
             let res = lock.write_msg(&command).await;
+            println!("{}", "here");
             if res.is_err() {
-                failed_broadcasts.push(*stream.0);
+            println!("{}", "errrororo");
+            failed_broadcasts.push(*stream.0);
                 continue;
             }
         }

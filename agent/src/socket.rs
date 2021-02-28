@@ -1,5 +1,8 @@
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
+use sodiumoxide::crypto::aead::{Key, Nonce};
+use crate::crypto;
+
 pub enum SocketState {
     Handshake(HandshakeState),
     Operational,
@@ -9,16 +12,20 @@ pub enum HandshakeState {
     ServerHello, // RSA public key
 }
 
-pub struct SocketStream {
+pub struct SocketStream<'a> {
     pub stream: TcpStream,
+    pub aes_key: &'a Key,
+    pub aes_nonce: &'a Nonce,
     state: SocketState,
 }
 
-impl SocketStream {
-    pub fn new(stream: TcpStream) -> Self {
+impl<'a> SocketStream<'a> {
+    pub fn new(stream: TcpStream, aes_key: &'a Key, aes_nonce: &'a Nonce) -> Self {
         Self {
             stream,
             state: SocketState::Handshake(HandshakeState::ServerHello),
+            aes_key,
+            aes_nonce
         }
     }
 
@@ -37,14 +44,18 @@ impl SocketStream {
         }
     }
 
-    pub async fn handle_msg(&mut self, msg: Vec<u8>) {
-        let msg = String::from_utf8(msg).unwrap();
+    pub async fn handle_msg(&mut self, msg: Vec<u8>, n_bytes: usize) {
+        let trimmed = msg.get(..n_bytes).unwrap().split(|s| s == &(0 as u8)).next().unwrap();
+        let decrypted_msg = crypto::decrypt_from_aes(trimmed.to_vec(), &self.aes_key, &self.aes_nonce);
+
+        let msg = String::from_utf8(decrypted_msg).unwrap();
 
         match &self.state {
             SocketState::Handshake(handshake_state) => match handshake_state {
                 HandshakeState::ServerHello => {
                     if msg == "ACK" {
                         println!("Finished handshake successfully!");
+                        self.state = SocketState::Operational;
                     }
                 }
             },

