@@ -64,10 +64,10 @@ impl SocketStream {
     }
 
     pub async fn handle_msg(&mut self, msg: Vec<u8>, n_bytes: usize) -> Result<(), HandleErrors> {
-        // We want to ensure we read only the bytes we need 
+        // We want to ensure we read only the bytes we need
         // (more bytes than the actual message can cause huge problems with the encryption algorithms)
-        // For example "{some_encrypted_data}\0\0\0" can't be decrypted the way "{some_decrypted_data}" does. 
-        let msg = msg.get(..n_bytes).unwrap().to_vec(); 
+        // For example "{some_encrypted_data}\0\0\0" can't be decrypted the way "{some_decrypted_data}" does.
+        let msg = msg.get(..n_bytes).unwrap().to_vec();
 
         match &self.state {
             SocketState::Handshake(handshake_state) => match handshake_state {

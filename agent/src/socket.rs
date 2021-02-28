@@ -58,7 +58,7 @@ impl<'a> SocketStream<'a> {
             crypto::decrypt_from_aes(trimmed.to_vec(), &self.aes_key, &self.aes_nonce);
 
         if decrypted_msg.is_err() {
-            return Err(()) // Couldn't decrypt message, probably bad AES key!
+            return Err(()); // Couldn't decrypt message, probably bad AES key!
         }
 
         let msg = String::from_utf8(decrypted_msg.unwrap()).unwrap();
@@ -71,7 +71,7 @@ impl<'a> SocketStream<'a> {
                         self.state = SocketState::Operational;
                     } else {
                         println!("Bad handshake, returning an Error");
-                        return Err(()) // Bad handshake
+                        return Err(()); // Bad handshake
                     }
                 }
             },

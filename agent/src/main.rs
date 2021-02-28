@@ -55,8 +55,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let handle_res = stream.handle_msg(msg, n_bytes).await;
             if handle_res.is_err() {
-                break // try to reconnect something bad probably happened
-            } 
+                break; // try to reconnect something bad probably happened
+            }
         }
 
         eprintln!("Disconnected, trying to reconnect in 3 seconds...");
