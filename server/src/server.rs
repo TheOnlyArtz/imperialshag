@@ -7,16 +7,19 @@ use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
 use rand::prelude::*;
-
 use crate::socket::{SocketState, SocketStream};
+
+
 pub struct Server {
-    pub streams: Arc<Mutex<HashMap<i32, SocketStream>>>, // or agents
+    pub streams: Arc<Mutex<HashMap<i32, Arc<Mutex<SocketStream>>>>>, // or agents
+    pub rsa_private_key: Vec<u8>
 }
 
 impl Server {
-    pub fn new() -> Self {
+    pub fn new(rsa_private_key: Vec<u8>) -> Self {
         Self {
             streams: Arc::new(Mutex::new(HashMap::new())),
+            rsa_private_key
         }
     }
 
@@ -26,7 +29,7 @@ impl Server {
 
         let new_socket_id = generate_random_num();
         
-        streams_lock.insert(new_socket_id, socket);
+        streams_lock.insert(new_socket_id, Arc::new(Mutex::new(socket)));
 
         // FIRE HANDSHAKE SERVER_HELLO so we can keep on going from handle_msg.
         // let my_new_stream = Arc::clone(&streams_lock.get(&new_socket_id).unwrap().stream);
@@ -38,11 +41,16 @@ impl Server {
     }
 
     pub async fn broadcast_command(&mut self, command: Vec<u8>) -> Result<(), Vec<i32>> {
+        // Todo find better namings for everything here lmao
         let mut failed_broadcasts: Vec<i32> = Vec::new();
         let streams = Arc::clone(&self.streams);
         let mut streams = streams.lock().await;
+
         for stream in &mut *streams {
-            let res = stream.1.write_msg(&command).await;
+            let my_socket_stream = Arc::clone(stream.1);
+            let lock = my_socket_stream.lock().await;
+
+            let res = lock.write_msg(&command).await;
             if res.is_err() {
                 failed_broadcasts.push(*stream.0);
                 continue;
@@ -64,7 +72,10 @@ impl Server {
             loop {
                 let mut streams = my_streams.lock().await;
                 let socket = streams.get(&id).unwrap();
-                let msg = socket.consume_message().await;
+
+                let my_socket = Arc::clone(socket);
+                let mut lock = my_socket.lock().await;
+                let msg = lock.consume_message().await;
 
                 match msg {
                     Err(e) if e.kind() == std::io::ErrorKind::ConnectionReset => {
@@ -74,8 +85,8 @@ impl Server {
                         break;
                     }
                     Ok((msg, n_bytes)) => {
-                        println!("{} -> {}", String::from_utf8(msg.clone()).unwrap(), n_bytes);
-                        socket.handle_msg(msg).await;
+                        // println!("{} -> {}", String::from_utf8(msg.clone()).unwrap(), n_bytes);
+                        lock.handle_msg(msg).await;
                     }
                     _ => {}
                 }

