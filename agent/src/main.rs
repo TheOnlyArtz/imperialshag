@@ -51,8 +51,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let decrypted_msg = crypto::decrypt_from_aes(trimmed.to_vec(), &k, &n);
             stream.handle_msg(decrypted_msg).await;
-            
-            // println!("Msg -> {}", String::from_utf8(msg)?);
         }
 
         eprintln!("Disconnected, trying to reconnect in 5 seconds...");

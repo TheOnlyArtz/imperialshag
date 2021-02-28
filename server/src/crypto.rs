@@ -14,7 +14,7 @@ pub fn decrypt_from_aes(msg: Vec<u8>, key: &Key, nonce: &Nonce) -> Vec<u8> {
 
 pub fn encrypt_with_aes(msg: Vec<u8>, key: &Key, nonce: &Nonce) -> Vec<u8> {
     let c = aead::seal(&msg, None, &nonce, &key);
-    
+
     c
 }
 
@@ -26,8 +26,4 @@ pub async fn load_private_rsa(file_path: &str) -> Result<Vec<u8>, Box<dyn std::e
     file.read_to_end(&mut contents).await?;
 
     Ok(contents)
-    // let rsa = Rsa::generate(1024).unwrap();
-    // let private_key: Vec<u8> = rsa.private_key_to_pem().unwrap();
-    // let public_key: Vec<u8> = rsa.public_key_to_pem().unwrap();
-
 }

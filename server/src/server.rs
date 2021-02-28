@@ -85,7 +85,6 @@ impl Server {
                         break;
                     }
                     Ok((msg, n_bytes)) => {
-                        // println!("{} -> {}", String::from_utf8(msg.clone()).unwrap(), n_bytes);
                         lock.handle_msg(msg).await;
                     }
                     _ => {}

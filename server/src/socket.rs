@@ -112,7 +112,5 @@ impl SocketStream {
         );
 
         self.write_msg(&encrypted).await.unwrap();
-        // let decrypted = crypto::decrypt_from_aes(encrypted, self.aes_key.as_ref().unwrap(),
-        // self.aes_nonce.as_ref().unwrap());
     }
 }
