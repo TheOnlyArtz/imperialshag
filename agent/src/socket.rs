@@ -50,7 +50,9 @@ impl SocketStream {
                     },
                 }
             },
-            SocketState::Operational => {}
+            SocketState::Operational => {
+                println!("New command from server {}", msg);
+            }
         }
     }
 }

