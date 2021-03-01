@@ -1,10 +1,10 @@
 # Imperialshag
 A multi-platform distributed Command and Control purely written in Rust
 
-### Secured by default, better try to sniff some HTTP traffic, Losers.
+### Secured by default, better sniff some HTTP~~S~~ traffic.
 ![Handshake Visualized](https://i.imgur.com/OxKVGrE.png)
 
-#### Name's decision
+#### Project's Name
 ![Oh yea!](https://i.imgur.com/u1HlFYy.png)
 
 ##### It's right there! look.
